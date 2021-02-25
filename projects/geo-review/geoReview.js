@@ -10,12 +10,8 @@ export default class GeoReview {
   onInit() {
     const coords = JSON.parse(localStorage.getItem('review'));
 
-    if (!coords) {
-      return;
-    }
-
-    for (const item of coords) {
-      for (let i = 0; i < item.total; i++) {
+    if (coords) {
+      for (const item of coords) {
         this.map.createPlacemark(item.coords);
       }
     }
@@ -30,25 +26,35 @@ export default class GeoReview {
     const reviewForm = root.querySelector('[data-role=review-form]');
     reviewForm.dataset.coords = JSON.stringify(coords);
 
-    for (const item of reviews) {
-      const div = document.createElement('div');
-      div.classList.add('review-item');
-      div.innerHTML = `
-                    <div>
-                        <b>${item.name}</b> [${item.place}]
-                    </div>
-                    <div>${item.text}</div>
-                    `;
-      reviewList.appendChild(div);
+    if (reviews) {
+      for (const item of reviews) {
+        const div = document.createElement('div');
+        div.classList.add('review-item');
+        div.innerHTML = `
+                            <div>
+                                <b>${item.name}</b> [${item.place}]
+                            </div>
+                            <div>${item.text}</div>
+                            `;
+        reviewList.appendChild(div);
+      }
     }
 
     return root;
   }
 
   onClick(coords) {
+    this.map.openBalloon(coords, '');
     const list = JSON.parse(localStorage.getItem('review'));
-    const form = this.createForm(coords, list);
-    this.map.setBalloonContent(form.innerHTML);
+    let filteredList = undefined;
+    if (list) {
+      filteredList = list.filter(
+        (item) => JSON.stringify(item.coords) === JSON.stringify(coords)
+      );
+      filteredList = filteredList.map((item) => item.review);
+    }
+    const form = this.createForm(coords, filteredList);
+    this.map.openBalloon(coords, form.innerHTML);
   }
 
   onDocumentClick(e) {
@@ -65,7 +71,14 @@ export default class GeoReview {
       };
 
       try {
-        localStorage.setItem('review', JSON.stringify(data));
+        const savedReviews = JSON.parse(localStorage.getItem('review'));
+        if (!savedReviews) {
+          const dataArray = [data];
+          localStorage.setItem('review', JSON.stringify(dataArray));
+        } else {
+          const newStorage = [...savedReviews, data];
+          localStorage.setItem('review', JSON.stringify(newStorage));
+        }
         this.map.createPlacemark(coords);
         this.map.closeBalloon();
       } catch (e) {
